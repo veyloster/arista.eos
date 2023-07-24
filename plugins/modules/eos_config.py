@@ -226,6 +226,13 @@ options:
           in C(filename) within I(backup) directory.
         type: path
     type: dict
+  timer:
+    description:
+    - This argument will configure a commit timer which will need to be confirmed
+      before it is automatically rolled back. I(timer) is define as HhMmSs and will be
+      converted on the switches using the Arista format HH:MM:SS.
+      Example values - 10h, 10h19m5s, 1m60s, 10s
+    type: str
 """
 # noqa: E501
 
@@ -274,6 +281,15 @@ EXAMPLES = """
     backup_options:
       filename: backup.cfg
       dir_path: /home/user
+
+- name: deploying with a commit timer
+  arista.eos.eos_config:
+    timer: 1m
+  register: eos
+
+- name: commit using the session id
+  arista.eos.eos_command:
+    commands: configure session {{ eos.session }} commit
 """
 
 RETURN = """
@@ -312,6 +328,11 @@ time:
   returned: when backup is true
   type: str
   sample: "22:28:34"
+session:
+  description: Unique session ID to use when confirming changes with commit timer
+  returned: always
+  type: str
+  sample: "ansible_168207712846"
 """
 from ansible.module_utils._text import to_text
 from ansible.module_utils.basic import AnsibleModule
@@ -402,6 +423,7 @@ def main():
         diff_ignore_lines=dict(type="list", elements="str"),
         running_config=dict(aliases=["config"]),
         intended_config=dict(),
+        timer=dict(),
     )
 
     mutually_exclusive = [("lines", "src"), ("parents", "src")]
@@ -442,9 +464,7 @@ def main():
             msg="Cannot diff against sessions when sessions are disabled. Please change diff_against to another value",
         )
 
-    if module.params["backup"] or (
-        module._diff and module.params["diff_against"] == "running"
-    ):
+    if module.params["backup"] or (module._diff and module.params["diff_against"] == "running"):
         contents = get_config(module, flags=flags)
         config = NetworkConfig(indent=1, contents=contents)
         if module.params["backup"]:

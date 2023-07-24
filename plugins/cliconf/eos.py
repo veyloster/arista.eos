@@ -64,17 +64,13 @@ from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.c
     NetworkConfig,
     dumps,
 )
-from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.utils import (
-    to_list,
-)
+from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.utils import to_list
 from ansible_collections.ansible.netcommon.plugins.plugin_utils.cliconf_base import (
     CliconfBase,
     enable_mode,
 )
 
-from ansible_collections.arista.eos.plugins.module_utils.network.eos.eos import (
-    session_name,
-)
+from ansible_collections.arista.eos.plugins.module_utils.network.eos.eos import session_name
 
 
 class Cliconf(CliconfBase):
@@ -197,7 +193,9 @@ class Cliconf(CliconfBase):
         commit=True,
         replace=None,
         comment=None,
+        **kwargs,
     ):
+        timer = kwargs.get("timer")
         operations = self.get_device_operations()
         self.check_edit_config_capability(
             operations,
@@ -206,7 +204,6 @@ class Cliconf(CliconfBase):
             replace,
             comment,
         )
-
         if (commit is False) and (not self.supports_sessions()):
             raise ValueError(
                 "check mode is not supported without configuration session",
@@ -257,7 +254,11 @@ class Cliconf(CliconfBase):
                 resp["diff"] = out.strip()
 
             if commit:
-                self.commit()
+                if timer:
+                    self.send_command("commit timer %s" % timer)
+                    resp["session_name"] = session
+                else:
+                    self.commit()
             else:
                 self.discard_changes(session)
         else:
@@ -383,9 +384,7 @@ class Cliconf(CliconfBase):
         else:
             configdiffobjs = candidate_obj.items
 
-        diff["config_diff"] = (
-            dumps(configdiffobjs, "commands") if configdiffobjs else ""
-        )
+        diff["config_diff"] = dumps(configdiffobjs, "commands") if configdiffobjs else ""
         return diff
 
     def supports_sessions(self):
