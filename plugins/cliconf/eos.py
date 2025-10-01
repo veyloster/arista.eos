@@ -64,17 +64,13 @@ from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.c
     NetworkConfig,
     dumps,
 )
-from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.utils import (
-    to_list,
-)
+from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.utils import to_list
 from ansible_collections.ansible.netcommon.plugins.plugin_utils.cliconf_base import (
     CliconfBase,
     enable_mode,
 )
 
-from ansible_collections.arista.eos.plugins.module_utils.network.eos.eos import (
-    session_name,
-)
+from ansible_collections.arista.eos.plugins.module_utils.network.eos.eos import session_name
 
 
 class Cliconf(CliconfBase):
@@ -121,7 +117,14 @@ class Cliconf(CliconfBase):
         commit=True,
         replace=None,
         comment=None,
+        timer=None,
+        **kwargs,
     ):
+        """
+        Load candidate into a configuration session and optionally commit.
+        `timer` is optional and, if provided, will cause commit timer to be used
+        (e.g. 'commit timer HH:MM:SS' on EOS).
+        """
         operations = self.get_device_operations()
         self.check_edit_config_capability(
             operations,
@@ -138,8 +141,9 @@ class Cliconf(CliconfBase):
 
         resp = {}
         session = None
+        session_override = kwargs.get("session")
         if self.supports_sessions():
-            session = session_name()
+            session = session_override or session_name()
             resp.update({"session": session})
             self.send_command("configure session %s" % session)
             if replace:
@@ -181,7 +185,8 @@ class Cliconf(CliconfBase):
                 resp["diff"] = out.strip()
 
             if commit:
-                self.commit()
+                # If a timer was supplied, forward it to commit()
+                self.commit(timer=timer)
             else:
                 self.discard_changes(session)
         else:
@@ -197,7 +202,11 @@ class Cliconf(CliconfBase):
         commit=True,
         replace=None,
         comment=None,
+        timer=None,
+        session=None,
+        **kwargs,
     ):
+        session_override = session
         operations = self.get_device_operations()
         self.check_edit_config_capability(
             operations,
@@ -206,7 +215,6 @@ class Cliconf(CliconfBase):
             replace,
             comment,
         )
-
         if (commit is False) and (not self.supports_sessions()):
             raise ValueError(
                 "check mode is not supported without configuration session",
@@ -215,7 +223,7 @@ class Cliconf(CliconfBase):
         resp = {}
         session = None
         if self.supports_sessions():
-            session = session_name()
+            session = session_override or session_name()
             resp.update({"session": session})
             self.send_command("configure session %s" % session)
             if replace:
@@ -257,7 +265,12 @@ class Cliconf(CliconfBase):
                 resp["diff"] = out.strip()
 
             if commit:
-                self.commit()
+                if timer:
+                    self.send_command("commit timer %s" % timer)
+                    resp["session_name"] = session
+                    resp["commit_status"] = "pending"
+                else:
+                    self.commit()
             else:
                 self.discard_changes(session)
         else:
@@ -286,8 +299,19 @@ class Cliconf(CliconfBase):
             check_all=check_all,
         )
 
-    def commit(self):
-        self.send_command("commit")
+    def commit(self, timer=None):
+        """
+        Perform a commit on the device.
+
+        If `timer` is provided (string formatted as HH:MM:SS) this will
+        use the timed commit form supported by EOS:
+            commit timer <HH:MM:SS>
+        """
+        if timer:
+            # timer is expected to be already formatted as HH:MM:SS by the caller
+            self.send_command("commit timer %s" % timer)
+        else:
+            self.send_command("commit")
 
     def discard_changes(self, session=None):
         commands = ["end"]
@@ -331,6 +355,12 @@ class Cliconf(CliconfBase):
 
                 responses.append(out)
         return responses
+
+    def restore(self, filename=None, path=""):
+        if not filename:
+            raise ValueError("'file_name' value is required for restore")
+        cmd = f"configure replace {path}{filename} best-effort"
+        return self.send_command(cmd)
 
     def get_diff(
         self,
@@ -383,9 +413,7 @@ class Cliconf(CliconfBase):
         else:
             configdiffobjs = candidate_obj.items
 
-        diff["config_diff"] = (
-            dumps(configdiffobjs, "commands") if configdiffobjs else ""
-        )
+        diff["config_diff"] = dumps(configdiffobjs, "commands") if configdiffobjs else ""
         return diff
 
     def supports_sessions(self):

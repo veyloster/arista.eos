@@ -8,11 +8,10 @@ from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
 
+from unittest.mock import patch
+
 from ansible_collections.arista.eos.plugins.modules import eos_logging_global
-from ansible_collections.arista.eos.tests.unit.compat.mock import patch
-from ansible_collections.arista.eos.tests.unit.modules.utils import (
-    set_module_args,
-)
+from ansible_collections.arista.eos.tests.unit.modules.utils import set_module_args
 
 from .eos_module import TestEosModule, load_fixture
 
@@ -26,9 +25,7 @@ class TestEosLogging_GlobalModule(TestEosModule):
         self.mock_get_resource_connection_config = patch(
             "ansible_collections.ansible.netcommon.plugins.module_utils.network.common.rm_base.resource_module_base.get_resource_connection",
         )
-        self.get_resource_connection_config = (
-            self.mock_get_resource_connection_config.start()
-        )
+        self.get_resource_connection_config = self.mock_get_resource_connection_config.start()
 
         self.mock_execute_show_command = patch(
             "ansible_collections.arista.eos.plugins.module_utils.network.eos.facts.logging_global.logging_global.Logging_globalFacts.get_config",
@@ -63,6 +60,7 @@ class TestEosLogging_GlobalModule(TestEosModule):
                     hosts=[
                         dict(name="11.11.11.1", port=25),
                         dict(name="host01", port=514, protocol="tcp"),
+                        dict(name="192.0.2.1"),
                     ],
                     level=dict(facility="AAA", severity="alerts"),
                     persistent=dict(size=4096),
@@ -78,6 +76,7 @@ class TestEosLogging_GlobalModule(TestEosModule):
                                     port=514,
                                     protocol="tcp",
                                 ),
+                                dict(name="192.0.2.1"),
                             ],
                         ),
                     ],
@@ -100,6 +99,7 @@ class TestEosLogging_GlobalModule(TestEosModule):
                     hosts=[
                         dict(name="11.11.11.1", port=25),
                         dict(name="host01", port=514, protocol="tcp"),
+                        dict(name="192.0.2.1"),
                     ],
                     level=dict(facility="AAA", severity="alerts"),
                     persistent=dict(size=4096),
@@ -115,6 +115,7 @@ class TestEosLogging_GlobalModule(TestEosModule):
                                     port=514,
                                     protocol="tcp",
                                 ),
+                                dict(name="192.0.2.1"),
                             ],
                         ),
                     ],
@@ -137,6 +138,7 @@ class TestEosLogging_GlobalModule(TestEosModule):
                     hosts=[
                         dict(name="11.11.11.1", port=25),
                         dict(name="host01", port=514, protocol="tcp"),
+                        dict(name="192.0.2.1"),
                     ],
                     level=dict(facility="AAA", severity="alerts"),
                     persistent=dict(size=4096),
@@ -152,6 +154,7 @@ class TestEosLogging_GlobalModule(TestEosModule):
                                     port=514,
                                     protocol="tcp",
                                 ),
+                                dict(name="192.0.2.1"),
                             ],
                         ),
                     ],
@@ -166,6 +169,7 @@ class TestEosLogging_GlobalModule(TestEosModule):
                 config=dict(
                     synchronous=dict(set=True),
                     trap=dict(severity="critical"),
+                    source_interface="Loopback6",
                     hosts=[dict(name="host02", protocol="tcp")],
                     vrfs=[
                         dict(name="vrf03", source_interface="vlan100"),
@@ -189,12 +193,13 @@ class TestEosLogging_GlobalModule(TestEosModule):
             ),
         )
         commands = [
-            "logging host host02 protocol tcp",
-            "logging vrf vrf04 host hostvrf1 add protocol tcp",
-            "logging vrf vrf04 host hostvrf2 remove protocol tcp",
+            "logging host host02 514 protocol tcp",
+            "logging vrf vrf04 host hostvrf1 add 514 protocol tcp",
+            "logging vrf vrf04 host hostvrf2 remove 514 protocol tcp",
             "logging vrf vrf03 source-interface vlan100",
             "logging synchronous",
             "logging trap critical",
+            "logging source-interface Loopback6",
         ]
         self.execute_module(changed=True, commands=sorted(commands))
 
@@ -221,15 +226,17 @@ class TestEosLogging_GlobalModule(TestEosModule):
             ),
         )
         commands = [
-            "logging host host02 add protocol tcp",
-            "logging host host03 remove protocol tcp",
+            "logging host host02 add 514 protocol tcp",
+            "logging host host03 remove 514 protocol tcp",
             "no logging host 11.11.11.1 25",
             "no logging host host01 514 protocol tcp",
             "logging vrf vrf03 source-interface vlan100",
-            "logging vrf vrf04 host hostvrf1 protocol tcp",
+            "logging vrf vrf04 host hostvrf1 514 protocol tcp",
             "no logging vrf vrf01 source-interface Ethernet1",
             "no logging vrf vrf02 host 24.1.1.1 33",
+            "no logging vrf vrf02 host 192.0.2.1 514",
             "no logging vrf vrf02 host hostvrf1 514 protocol tcp",
+            "no logging host 192.0.2.1 514",
             "no logging buffered 50000 informational",
             "no logging facility local7",
             "no logging console warnings",
@@ -263,13 +270,15 @@ class TestEosLogging_GlobalModule(TestEosModule):
             ),
         )
         commands = [
-            "logging host host02 protocol tcp",
+            "logging host host02 514 protocol tcp",
             "no logging host 11.11.11.1 25",
             "no logging host host01 514 protocol tcp",
             "logging vrf vrf03 source-interface vlan100",
-            "logging vrf vrf04 host hostvrf1 protocol tcp",
+            "logging vrf vrf04 host hostvrf1 514 protocol tcp",
+            "no logging host 192.0.2.1 514",
             "no logging vrf vrf01 source-interface Ethernet1",
             "no logging vrf vrf02 host 24.1.1.1 33",
+            "no logging vrf vrf02 host 192.0.2.1 514",
             "no logging vrf vrf02 host hostvrf1 514 protocol tcp",
             "no logging buffered 50000 informational",
             "no logging facility local7",
@@ -293,9 +302,11 @@ class TestEosLogging_GlobalModule(TestEosModule):
         commands = [
             "no logging host 11.11.11.1 25",
             "no logging host host01 514 protocol tcp",
+            "no logging host 192.0.2.1 514",
             "no logging vrf vrf01 source-interface Ethernet1",
             "no logging vrf vrf02 host 24.1.1.1 33",
             "no logging vrf vrf02 host hostvrf1 514 protocol tcp",
+            "no logging vrf vrf02 host 192.0.2.1 514",
             "no logging buffered 50000 informational",
             "no logging facility local7",
             "no logging console warnings",
@@ -435,3 +446,15 @@ class TestEosLogging_GlobalModule(TestEosModule):
             sorted(commands),
             result["rendered"],
         )
+
+
+class TestEOSLogging_GlobalModuleNew(TestEosLogging_GlobalModule):
+    def load_fixtures(self, commands=None, transport="cli", filename=None):
+        if filename is None:
+            filename = "eos_logging_global_config-new.cfg"
+
+        def load_from_file(*args, **kwargs):
+            output = load_fixture(filename)
+            return output
+
+        self.execute_show_command.side_effect = load_from_file

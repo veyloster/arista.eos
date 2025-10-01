@@ -71,9 +71,7 @@ def _tmplt_route_map_extcommunity_rt(config_data):
 def _tmplt_route_maps_subroutemap(config_data):
     command = ""
     if config_data["entries"].get("sub_route_map"):
-        command = (
-            "sub-route-map " + config_data["entries"]["sub_route_map"]["name"]
-        )
+        command = "sub-route-map " + config_data["entries"]["sub_route_map"]["name"]
     if config_data["entries"]["sub_route_map"].get("invert_result"):
         command += " invert-result"
     return command
@@ -91,11 +89,12 @@ def _tmplt_route_map_extcommunity_soo(config_data):
 
 def _tmplt_route_map_ip(config_data):
     config_data = config_data["entries"]["set"]
+    command = ""
     if config_data.get("ip"):
         command = "set ip next-hop "
         k = "ip"
     elif config_data.get("ipv6"):
-        command = "set ip next-hop "
+        command = "set ipv6 next-hop "
         k = "ipv6"
     if config_data[k].get("address"):
         command += config_data[k]["address"]
@@ -147,9 +146,7 @@ def _tmplt_route_map_match_aspath(config_data):
 
 
 def _tmplt_route_map_match_invert_aggregator_role(config_data):
-    config_data = config_data["entries"]["match"]["invert_result"][
-        "aggregate_role"
-    ]
+    config_data = config_data["entries"]["match"]["invert_result"]["aggregate_role"]
     command = "match invert-result as-path aggregate-role contributor"
     if config_data.get("route_map"):
         command += " aggregator-attributes " + config_data["route_map"]
@@ -204,10 +201,7 @@ def _tmplt_route_map_match_ip(config_data):
         if config_data.get("next_hop"):
             command += "next-hop prefix-list " + config_data["next_hop"]
         elif config_data.get("resolved_next_hop"):
-            command += (
-                "resolved-next-hop prefix-list "
-                + config_data["resolved_next_hop"]
-            )
+            command += "resolved-next-hop prefix-list " + config_data["resolved_next_hop"]
     return command
 
 
@@ -219,10 +213,7 @@ def _tmplt_route_map_match_ipv6(config_data):
         if config_data.get("next_hop"):
             command += "next-hop prefix-list " + config_data["next_hop"]
         elif config_data.get("resolved_next_hop"):
-            command += (
-                "resolved-next-hop prefix-list "
-                + config_data["resolved_next_hop"]
-            )
+            command += "resolved-next-hop prefix-list " + config_data["resolved_next_hop"]
     return command
 
 
@@ -614,24 +605,26 @@ class Route_mapsTemplate(NetworkTemplate):
             "getval": re.compile(
                 r"""
                 \s*set\scommunity
-                \s+(?P<num>\d+\s*)+
+                \s+(?P<num>(\d+(:\d+)?\s*))+
                 \s*(?P<action>additive|delete)*
                 \s*(?P<donot>local-as|no-advertise|no-export)*
                 $""",
                 re.VERBOSE,
             ),
-            "setval": "set community {{ entries.set.community.number }}" +
+            "setval": "set community {{ entries.set.community_attributes.community.number }}" +
                       "{{ (' ' + action) if action is defined }}{{  (' ' + donot) if donot is defined }}",
-            "compval": "entries.set.community",
+            "compval": "entries.set.community_attributes.community",
             "result": {
                 "entries": [
                     {
                         "set": {
-                            "community": {
-                                "number": "{{ num }}",
-                                "additive": "{{ True if action == 'additive' }}",
-                                "delete": "{{ True if action == 'delete' }}",
-                                '{{ "donot" }}': "{{ True if donot is defined }}",
+                            "community_attributes": {
+                                "community": {
+                                    "number": "{{ num }}",
+                                    "additive": "{{ True if action == 'additive' }}",
+                                    "delete": "{{ True if action == 'delete' }}",
+                                    '{{ "donot" }}': "{{ True if donot is defined }}",
+                                },
                             },
                         },
                     },
@@ -941,7 +934,7 @@ class Route_mapsTemplate(NetworkTemplate):
             "getval": re.compile(
                 r"""
                 \s*set\smetric
-                \s*(?P<val>\d+)*
+                \s*(?P<val>[+-]?\d+)*
                 \s*(?P<operation>\+\S+)*
                 \s*(?P<param>igp-metric|igp-nexthop-cost)*
                 $""",
@@ -954,7 +947,7 @@ class Route_mapsTemplate(NetworkTemplate):
                     {
                         "set": {
                             "metric": {
-                                "value": "{{ val }}",
+                                "value": "{{ val | default('') | tojson  }}",
                                 "add": "{{ operation.strip('+') }}",
                                 "igp_param": "{{ param }}",
                             },
@@ -1191,7 +1184,7 @@ class Route_mapsTemplate(NetworkTemplate):
             "getval": re.compile(
                 r"""
                 \s*match\scommunity
-                \s+(?P<comm>.+\s)
+                \s+(?P<comm>\S+)
                 \s*(?P<mat>exact-match)*
                 $""",
                 re.VERBOSE,

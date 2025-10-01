@@ -19,10 +19,7 @@ import re
 
 from copy import deepcopy
 
-from ansible.module_utils.six import iteritems
-from ansible_collections.ansible.netcommon.plugins.module_utils.network.common import (
-    utils,
-)
+from ansible_collections.ansible.netcommon.plugins.module_utils.network.common import utils
 
 from ansible_collections.arista.eos.plugins.module_utils.network.eos.argspec.route_maps.route_maps import (
     Route_mapsArgs,
@@ -76,9 +73,7 @@ class Route_mapsFacts(object):
             resource_delim,
             resource_delim,
         )
-        resources = [
-            p.strip() for p in re.findall(find_pattern, data, re.DOTALL)
-        ]
+        resources = [p.strip() for p in re.findall(find_pattern, data, re.DOTALL)]
         # parse native config using the Ospf_interfaces template
         route_maps_facts = []
         # parse native config using the Route_maps template
@@ -87,7 +82,7 @@ class Route_mapsFacts(object):
             objs = route_maps_parser.parse()
             if objs:
                 dict_update = {}
-                for k, v in iteritems(objs):
+                for k, v in objs.items():
                     if k == "entries":
                         e_list = []
                         match_dict = {}
@@ -95,14 +90,12 @@ class Route_mapsFacts(object):
                         match_ipv6 = {}
                         set_dict = {}
                         for el in v:
-                            for entry_k, entry_v in iteritems(el):
+                            for entry_k, entry_v in el.items():
                                 if entry_k == "match":
-                                    if "ip" in entry_v or "ipv6" in entry_v:
-                                        for ipk, ipv in iteritems(entry_v):
-                                            if "ip" in entry_v:
-                                                match_ip.update(ipv)
-                                            if "ipv6" in entry_v:
-                                                match_ipv6.update(ipv)
+                                    if "ip" in entry_v:
+                                        match_ip.update(entry_v.get("ip", {}))
+                                    if "ipv6" in entry_v:
+                                        match_ipv6.update(entry_v.get("ipv6", {}))
                                         matchv = {
                                             "ip": match_ip,
                                             "ipv6": match_ipv6,

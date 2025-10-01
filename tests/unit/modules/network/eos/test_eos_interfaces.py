@@ -8,11 +8,10 @@ from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
 
+from unittest.mock import patch
+
 from ansible_collections.arista.eos.plugins.modules import eos_interfaces
-from ansible_collections.arista.eos.tests.unit.compat.mock import patch
-from ansible_collections.arista.eos.tests.unit.modules.utils import (
-    set_module_args,
-)
+from ansible_collections.arista.eos.tests.unit.modules.utils import set_module_args
 
 from .eos_module import TestEosModule, load_fixture
 
@@ -36,16 +35,12 @@ class TestEosInterfacesModule(TestEosModule):
         self.mock_get_resource_connection_config = patch(
             "ansible_collections.ansible.netcommon.plugins.module_utils.network.common.cfg.base.get_resource_connection",
         )
-        self.get_resource_connection_config = (
-            self.mock_get_resource_connection_config.start()
-        )
+        self.get_resource_connection_config = self.mock_get_resource_connection_config.start()
 
         self.mock_get_resource_connection_facts = patch(
             "ansible_collections.ansible.netcommon.plugins.module_utils.network.common.facts.facts.get_resource_connection",
         )
-        self.get_resource_connection_facts = (
-            self.mock_get_resource_connection_facts.start()
-        )
+        self.get_resource_connection_facts = self.mock_get_resource_connection_facts.start()
 
         self.mock_edit_config = patch(
             "ansible_collections.arista.eos.plugins.module_utils.network.eos.providers.providers.CliProvider.edit_config",
@@ -89,7 +84,6 @@ class TestEosInterfacesModule(TestEosModule):
             "interface Ethernet3",
             "description Ethernet_3",
             "switchport",
-            "no shutdown",
         ]
         self.execute_module(changed=True, commands=commands)
 
@@ -245,9 +239,27 @@ class TestEosInterfacesModule(TestEosModule):
             "description Ethernet 1",
             "interface Management1",
             "no description",
-            "no shutdown",
             "interface Ethernet4",
             "speed auto",
+            "interface Ethernet5",
             "no shutdown",
+        ]
+        self.execute_module(changed=True, commands=commands)
+
+    def test_eos_interfaces_merged_shutdown(self):
+        set_module_args(
+            dict(
+                config=[
+                    dict(
+                        name="Ethernet5",
+                        description="Ethernet_5",
+                    ),
+                ],
+                state="merged",
+            ),
+        )
+        commands = [
+            "interface Ethernet5",
+            "description Ethernet_5",
         ]
         self.execute_module(changed=True, commands=commands)

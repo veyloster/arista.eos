@@ -8,11 +8,10 @@ from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
 
+from unittest.mock import patch
+
 from ansible_collections.arista.eos.plugins.modules import eos_route_maps
-from ansible_collections.arista.eos.tests.unit.compat.mock import patch
-from ansible_collections.arista.eos.tests.unit.modules.utils import (
-    set_module_args,
-)
+from ansible_collections.arista.eos.tests.unit.modules.utils import set_module_args
 
 from .eos_module import TestEosModule, load_fixture
 
@@ -26,9 +25,7 @@ class TestEosRoute_MapsModule(TestEosModule):
         self.mock_get_resource_connection_config = patch(
             "ansible_collections.ansible.netcommon.plugins.module_utils.network.common.rm_base.resource_module_base.get_resource_connection",
         )
-        self.get_resource_connection_config = (
-            self.mock_get_resource_connection_config.start()
-        )
+        self.get_resource_connection_config = self.mock_get_resource_connection_config.start()
 
         self.mock_execute_show_command = patch(
             "ansible_collections.arista.eos.plugins.module_utils.network.eos.facts.route_maps.route_maps.Route_mapsFacts.get_config",
@@ -61,7 +58,10 @@ class TestEosRoute_MapsModule(TestEosModule):
                                 description="merged_map",
                                 action="permit",
                                 sequence=10,
-                                match=dict(router_id=22),
+                                match=dict(
+                                    router_id=22,
+                                    community=dict(community_list="list1"),
+                                ),
                             ),
                             dict(
                                 description="newmap",
@@ -117,6 +117,9 @@ class TestEosRoute_MapsModule(TestEosModule):
                                     tag=3,
                                     local_preference=51,
                                     evpn=True,
+                                    ipv6=dict(
+                                        address="10.1.1.1/32",
+                                    ),
                                 ),
                             ),
                         ],
@@ -135,6 +138,7 @@ class TestEosRoute_MapsModule(TestEosModule):
             "set tag 3",
             "set local-preference 51",
             "set evpn next-hop unchanged",
+            "set ipv6 next-hop 10.1.1.1/32",
         ]
         self.execute_module(changed=True, commands=commands)
 
@@ -151,7 +155,10 @@ class TestEosRoute_MapsModule(TestEosModule):
                                 action="permit",
                                 sequence=10,
                                 set=dict(bgp=20),
-                                match=dict(router_id=22),
+                                match=dict(
+                                    router_id=22,
+                                    community=dict(community_list="list1"),
+                                ),
                             ),
                             dict(
                                 description="newmap",
@@ -218,6 +225,7 @@ class TestEosRoute_MapsModule(TestEosModule):
             "route-map mapmerge permit 10",
             "match ipv6 resolved-next-hop prefix-list listr",
             "no match router-id prefix-list 22",
+            "no match community list1",
             "no set bgp bestpath as-path weight 20",
             "no description",
             "route-map mapmerge deny 90",
@@ -238,7 +246,10 @@ class TestEosRoute_MapsModule(TestEosModule):
                                 description="merged_map",
                                 action="permit",
                                 sequence=10,
-                                match=dict(router_id=22),
+                                match=dict(
+                                    router_id=22,
+                                    community=dict(community_list="list1"),
+                                ),
                                 set=dict(bgp=20),
                             ),
                             dict(
@@ -263,6 +274,19 @@ class TestEosRoute_MapsModule(TestEosModule):
                                 set=dict(
                                     metric=dict(value=25, add="igp-metric"),
                                     as_path=dict(prepend=dict(last_as=2)),
+                                ),
+                            ),
+                        ],
+                    ),
+                    dict(
+                        route_map="mapmerge3",
+                        entries=[
+                            dict(
+                                action="permit",
+                                sequence=5,
+                                set=dict(
+                                    metric=dict(value="+20"),
+                                    community_attributes=dict(community=dict(number="20000:20000")),
                                 ),
                             ),
                         ],
@@ -319,10 +343,12 @@ class TestEosRoute_MapsModule(TestEosModule):
         commands = [
             "no route-map mapmerge deny 25",
             "no route-map mapmerge2 deny 45",
+            "no route-map mapmerge3 permit 5",
             "route-map mapmerge permit 10",
             "match ipv6 address prefix-list test_prefix",
             "set metric igp-nexthop-cost",
             "no match router-id prefix-list 22",
+            "no match community list1",
             "no set bgp bestpath as-path weight 20",
             "no description",
             "route-map mapmerge deny 90",
@@ -341,7 +367,7 @@ class TestEosRoute_MapsModule(TestEosModule):
 
     def test_eos_route_maps_delete_all(self):
         set_module_args(dict(state="deleted"))
-        commands = ["no route-map mapmerge", "no route-map mapmerge2"]
+        commands = ["no route-map mapmerge", "no route-map mapmerge2", "no route-map mapmerge3"]
         self.execute_module(changed=True, commands=commands)
 
     def test_eos_route_maps_render(self):
@@ -356,7 +382,10 @@ class TestEosRoute_MapsModule(TestEosModule):
                                 description="merged_map",
                                 action="permit",
                                 sequence=10,
-                                match=dict(router_id=22),
+                                match=dict(
+                                    router_id=22,
+                                    community=dict(community_list="list1"),
+                                ),
                             ),
                             dict(
                                 description="newmap",
@@ -383,6 +412,19 @@ class TestEosRoute_MapsModule(TestEosModule):
                             ),
                         ],
                     ),
+                    dict(
+                        route_map="mapmerge3",
+                        entries=[
+                            dict(
+                                action="permit",
+                                sequence=5,
+                                set=dict(
+                                    metric=dict(value="+20"),
+                                    community_attributes=dict(community=dict(number="20000:20000")),
+                                ),
+                            ),
+                        ],
+                    ),
                 ],
             ),
         )
@@ -390,6 +432,7 @@ class TestEosRoute_MapsModule(TestEosModule):
             "route-map mapmerge permit 10",
             "description merged_map",
             "match router-id prefix-list 22",
+            "match community list1",
             "route-map mapmerge deny 25",
             "description newmap",
             "match interface Ethernet1",
@@ -398,6 +441,9 @@ class TestEosRoute_MapsModule(TestEosModule):
             "match ipv6 resolved-next-hop prefix-list list1",
             "set metric 25 +igp-metric",
             "set as-path prepend last-as 2",
+            "route-map mapmerge3 permit 5",
+            "set metric +20",
+            "set community 20000:20000",
         ]
 
         result = self.execute_module(changed=False)
@@ -418,7 +464,10 @@ class TestEosRoute_MapsModule(TestEosModule):
                 {
                     "action": "permit",
                     "description": "merged_map",
-                    "match": {"router_id": "22"},
+                    "match": {
+                        "router_id": "22",
+                        "community": {"community_list": "list1"},
+                    },
                     "sequence": 10,
                     "set": {"bgp": 20},
                 },
@@ -442,9 +491,19 @@ class TestEosRoute_MapsModule(TestEosModule):
                     "sub_route_map": {"name": "mapmerge"},
                 },
             ],
+            "mapmerge3": [
+                {
+                    "action": "permit",
+                    "sequence": 5,
+                    "set": {
+                        "metric": {"value": "+20"},
+                        "community_attributes": {"community": {"number": "20000:20000"}},
+                    },
+                },
+            ],
         }
         for entry in result["gathered"]:
-            if entry.get("route_map") in ["mapmerge", "mapmerge2"]:
+            if entry.get("route_map") in ["mapmerge", "mapmerge2", "mapmerge3"]:
                 self.assertEqual(
                     gathered_list[entry["route_map"]],
                     entry["entries"],
@@ -464,6 +523,9 @@ class TestEosRoute_MapsModule(TestEosModule):
             "sub-route-map mapmerge",
             "set metric 25 +igp-metric",
             "set as-path prepend last-as 2",
+            "route-map mapmerge3 permit 5",
+            "set metric +20",
+            "set community 20000:20000",
         ]
 
         parsed_str = "\n".join(commands)
@@ -502,6 +564,19 @@ class TestEosRoute_MapsModule(TestEosModule):
                     },
                 ],
                 "route_map": "mapmerge2",
+            },
+            {
+                "entries": [
+                    {
+                        "action": "permit",
+                        "sequence": 5,
+                        "set": {
+                            "metric": {"value": "+20"},
+                            "community_attributes": {"community": {"number": "20000:20000"}},
+                        },
+                    },
+                ],
+                "route_map": "mapmerge3",
             },
         ]
         self.assertEqual(parsed_list, result["parsed"])

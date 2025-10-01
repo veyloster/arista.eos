@@ -10,13 +10,10 @@ import json
 
 from threading import RLock
 
-from ansible.module_utils.six import itervalues
 from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.config import (
     NetworkConfig,
 )
-from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.utils import (
-    to_list,
-)
+from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.utils import to_list
 
 
 _registered_providers = {}
@@ -33,7 +30,7 @@ def register_provider(network_os, module_name):
                 if ct not in _registered_providers[network_os]:
                     _registered_providers[network_os][ct] = {}
             for item in to_list(module_name):
-                for entry in itervalues(_registered_providers[network_os]):
+                for entry in _registered_providers[network_os].values():
                     entry[item] = cls
         finally:
             _provider_lock.release()

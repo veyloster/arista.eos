@@ -25,9 +25,7 @@ from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.r
 def _tmplt_logging_format(config_data):
     command = ""
     if "hostname" in config_data["format"]:
-        command = (
-            "logging format hostname " + config_data["format"]["hostname"]
-        )
+        command = "logging format hostname " + config_data["format"]["hostname"]
     if "sequence_numbers" in config_data["format"]:
         command = "logging format sequence-numbers"
     return command
@@ -54,7 +52,7 @@ def _tmplt_logging_global_hosts(config_data):
         command += " add"
     if el.get("remove"):
         command += " remove"
-    if el.get("port"):
+    if el.get("port", 514):
         command += " " + str(el["port"])
     if el.get("protocol"):
         command += " protocol " + el["protocol"]
@@ -70,7 +68,7 @@ def _tmplt_logging_global_vrf_hosts(config_data):
         command += " add"
     if el.get("remove"):
         command += " remove"
-    if el.get("port"):
+    if el.get("port", 514):
         command += " " + str(el["port"])
     if el.get("protocol"):
         command += " protocol " + el["protocol"]
@@ -249,7 +247,7 @@ class Logging_globalTemplate(NetworkTemplate):
                         "name": "{{ name }}",
                         "add": '{{ True if oper == "add" }}',
                         "remove": '{{ True if oper == "remove" }}',
-                        "port": "{{ port }}",
+                        "port": "{{ port  or 514 }}",
                         "protocol": "{{ proto }}",
                     },
                 },
@@ -375,6 +373,7 @@ class Logging_globalTemplate(NetworkTemplate):
                 re.VERBOSE,
             ),
             "setval": 'logging source-interface {{ source_interface }}',
+            "compval": "source_interface",
             "result": {
                 "source_interface": "{{ val }}",
             },
@@ -440,7 +439,7 @@ class Logging_globalTemplate(NetworkTemplate):
                                 "name": "{{ name }}",
                                 "add": '{{ True if oper == "add" }}',
                                 "remove": '{{ True if oper == "remove" }}',
-                                "port": "{{ port }}",
+                                "port": "{{ port or 514 }}",
                                 "protocol": "{{ proto }}",
                             },
                         },
